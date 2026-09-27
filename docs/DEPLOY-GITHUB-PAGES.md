@@ -7,15 +7,24 @@ GitHub Pages hosts **static files only** (HTML, CSS, JS). The UI runs in the bro
 - Import CSV/XLSX, templates, campaigns (in-browser memory)
 - UI, reports export, suppression list (browser-only)
 
-## What does **not** run on Pages
+## What does **not** run on Pages alone
 
-- **WhatsApp QR / pairing / auto-send** need the **Node.js server** (`server.js` + Baileys) on a machine you control (Mac, VPS, Railway, etc.).
+- **WhatsApp QR / pairing / auto-send** need the **Node.js server** (`server.js` + Baileys). GitHub Pages cannot run that code.
 
-On GitHub Pages, set **Settings → WhatsApp link → Self-hosted WhatsApp engine URL** to your server, for example:
+### Option A — Easiest (recommended): one URL, no paste
 
-`http://192.168.1.5:3000` (home Wi‑Fi) or `https://your-vps.example.com`
+1. Deploy the **full app** with [Render](https://render.com) using `render.yaml` in this repo (or run `npm start` locally).
+2. Open that URL in the browser — QR and pairing work automatically (UI and engine share the same origin).
 
-The server must be reachable from the browser and already allows CORS (WappFlow’s server sets `Access-Control-Allow-Origin: *`).
+### Option B — GitHub Pages UI + hosted engine (no manual paste in the app)
+
+1. Deploy the engine (Render / VPS) and note the **https://** URL (required — Pages is https, so `http://192.168.x.x` is blocked by the browser).
+2. In GitHub: **Settings → Secrets and variables → Actions → Variables** → add `WAPPFLOW_WA_ENGINE_URL` = `https://your-wappflow.onrender.com`
+3. Redeploy Pages. The build injects that URL into the site; QR/pairing call your server with no settings field.
+
+### Option C — Home Wi‑Fi only
+
+Run `npm start` and open **`http://<your-lan-ip>:3000`** on the same network — not the `github.io` link. QR works with no extra configuration.
 
 ## One-time GitHub setup
 

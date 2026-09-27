@@ -1,0 +1,14 @@
+# One URL for UI + WhatsApp (QR / pairing) — no GitHub Pages engine URL needed.
+# Connect this repo on https://render.com → New → Blueprint
+services:
+  - type: web
+    name: wappflow
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node serve.js
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: HOST
+        value: "0.0.0.0"

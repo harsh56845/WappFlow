@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="wappflow-base" content="/">
+  <meta name="wappflow-wa-engine" content="">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="shortcut icon" href="favicon.svg">
   <link rel="apple-touch-icon" href="favicon.svg">
@@ -1156,16 +1157,9 @@
           <!-- ================= TAB 1: WHATSAPP AUTO DISPATCH & QR ================= -->
           <div id="settings-tab-qr" class="space-y-6">
 
-            <div id="wa-engine-url-card" class="p-4 rounded-2xl border border-amber-200 bg-amber-50/90 space-y-3">
-              <h4 class="text-sm font-bold text-amber-900">Self-hosted WhatsApp engine (GitHub Pages / remote UI)</h4>
-              <p class="text-[11px] text-amber-900/80 leading-relaxed">
-                On <strong>GitHub Pages</strong> the UI is static only. Paste the URL where you run <code class="bg-white/80 px-1 rounded">npm start</code> (e.g. <code class="bg-white/80 px-1 rounded">http://192.168.1.5:3000</code>). Leave empty when you open WappFlow on the same machine as the server (<code class="bg-white/80 px-1 rounded">localhost:3000</code>).
-              </p>
-              <div class="flex flex-col sm:flex-row gap-2">
-                <input type="url" id="cfg-wa-engine-url" placeholder="http://192.168.1.5:3000" class="flex-1 px-3.5 py-2 text-xs border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none font-mono bg-white">
-                <button type="button" onclick="saveWaEngineUrl()" class="px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold rounded-xl shrink-0">Save engine URL</button>
-              </div>
-              <p id="cfg-wa-engine-url-status" class="text-[11px] text-amber-800 hidden"></p>
+            <div id="wa-github-pages-notice" class="hidden p-4 rounded-2xl border border-amber-200 bg-amber-50/90 space-y-2">
+              <h4 class="text-sm font-bold text-amber-900">WhatsApp can’t run inside GitHub Pages alone</h4>
+              <p id="wa-github-pages-notice-body" class="text-[11px] text-amber-900/85 leading-relaxed"></p>
             </div>
             <!-- Header Banner -->
             <div class="settings-info-banner p-5 rounded-2xl bg-gradient-to-r from-brand-50 via-accent-50 to-blue-50 border border-brand-200/80 flex items-start space-x-3.5">
@@ -3454,12 +3448,68 @@
       return pathname;
     }
 
+    function isGitHubPagesHost() {
+      return /\.github\.io$/i.test(window.location.hostname);
+    }
+
+    function getConfiguredWaEngineFromMeta() {
+      const meta = document.querySelector('meta[name="wappflow-wa-engine"]');
+      if (!meta) return '';
+      const c = (meta.getAttribute('content') || '').trim();
+      return c ? c.replace(/\/$/, '') : '';
+    }
+
     function getWhatsAppEngineOrigin() {
+      const fromMeta = getConfiguredWaEngineFromMeta();
+      if (fromMeta) return fromMeta;
+      if (!isGitHubPagesHost()) return '';
       try {
         const ls = (localStorage.getItem('wappflow_whatsapp_api_base') || '').trim();
         if (ls) return ls.replace(/\/$/, '');
       } catch (_) {}
       return '';
+    }
+
+    function getWaEngineAvailability() {
+      const origin = getWhatsAppEngineOrigin();
+      if (!isGitHubPagesHost()) {
+        return { canUse: true, origin: origin || window.location.origin };
+      }
+      if (!origin) {
+        return {
+          canUse: false,
+          reason: 'no-engine',
+          message:
+            'This page is hosted on GitHub Pages (static files only). QR and pairing need the WappFlow Node server. ' +
+            'Run <code class="bg-white/80 px-1 rounded">npm start</code> on your Mac and open that URL in the browser (same Wi‑Fi: <code class="bg-white/80 px-1 rounded">http://&lt;your-lan-ip&gt;:3000</code>), ' +
+            'or deploy the full app once (see <code class="bg-white/80 px-1 rounded">render.yaml</code> in the repo) and set the repository variable <strong>WAPPFLOW_WA_ENGINE_URL</strong> to your <strong>https://</strong> server URL, then redeploy Pages.'
+        };
+      }
+      if (window.location.protocol === 'https:' && /^http:\/\//i.test(origin)) {
+        return {
+          canUse: false,
+          reason: 'mixed-content',
+          origin,
+          message:
+            'This site is <strong>https</strong> but the WhatsApp engine is <strong>http</strong> (' +
+            origin +
+            '). Browsers block that. Use an <strong>https://</strong> engine (e.g. Render deploy or Cloudflare Tunnel) or open WappFlow at <code class="bg-white/80 px-1 rounded">http://&lt;lan-ip&gt;:3000</code> instead of GitHub Pages.'
+        };
+      }
+      return { canUse: true, origin };
+    }
+
+    function updateWaEngineHostUi() {
+      const notice = document.getElementById('wa-github-pages-notice');
+      const body = document.getElementById('wa-github-pages-notice-body');
+      if (!notice || !body) return;
+      const avail = getWaEngineAvailability();
+      if (!isGitHubPagesHost() || avail.canUse) {
+        notice.classList.add('hidden');
+        return;
+      }
+      body.innerHTML = avail.message;
+      notice.classList.remove('hidden');
     }
 
     function resolveWhatsAppFetchUrl(url) {
@@ -3470,30 +3520,8 @@
       return origin + path;
     }
 
-    function saveWaEngineUrl() {
-      const input = document.getElementById('cfg-wa-engine-url');
-      const status = document.getElementById('cfg-wa-engine-url-status');
-      if (!input) return;
-      let v = String(input.value || '').trim().replace(/\/$/, '');
-      try {
-        if (v) localStorage.setItem('wappflow_whatsapp_api_base', v);
-        else localStorage.removeItem('wappflow_whatsapp_api_base');
-        if (status) {
-          status.textContent = v ? 'Saved. WhatsApp API will use: ' + v : 'Cleared — using same origin as this page.';
-          status.classList.remove('hidden');
-        }
-        showToast(v ? 'WhatsApp engine URL saved' : 'Using same-origin WhatsApp server', 'success');
-      } catch (e) {
-        showToast('Could not save URL', 'error');
-      }
-    }
-
     function loadWaEngineUrlField() {
-      const input = document.getElementById('cfg-wa-engine-url');
-      if (!input) return;
-      try {
-        input.value = localStorage.getItem('wappflow_whatsapp_api_base') || '';
-      } catch (_) {}
+      updateWaEngineHostUi();
     }
 
     // Baileys WhatsApp engine routes are served by server.js — must not use the in-memory mock.
@@ -3518,10 +3546,14 @@
 
     window.fetch = async function(url, options = {}) {
       if (isWhatsAppEngineApi(url)) {
-        const waUrl = resolveWhatsAppFetchUrl(url);
-        if (!getWhatsAppEngineOrigin() && /\.github\.io$/i.test(window.location.hostname)) {
-          console.warn('GitHub Pages: set Self-hosted WhatsApp engine URL in Settings → WhatsApp link.');
+        const avail = getWaEngineAvailability();
+        if (!avail.canUse) {
+          return Promise.resolve(new Response(
+            JSON.stringify({ success: false, error: avail.reason || 'wa-engine-unavailable', message: avail.message || '' }),
+            { status: 503, headers: { 'Content-Type': 'application/json' } }
+          ));
         }
+        const waUrl = resolveWhatsAppFetchUrl(url);
         return _nativeFetch(waUrl, withWaClientHeaders(options));
       }
       const resolved = typeof url === 'string' && url.startsWith('/api/') ? resolveAppUrl(url) : url;
@@ -5156,6 +5188,9 @@
     let lastSessionStatusAt = 0;
 
     async function loadSessionStatus(force = false) {
+      updateWaEngineHostUi();
+      const avail = getWaEngineAvailability();
+      if (!avail.canUse) return;
       const now = Date.now();
       if (!force && isWhatsAppConnected && now - lastSessionStatusAt < 15000) {
         return;
@@ -5219,6 +5254,23 @@
       const qrStatusText = document.getElementById("qr-status-text");
       const qrConnectedCard = document.getElementById("qr-connected-card");
       const qrUnlinkedCard = document.getElementById("qr-unlinked-card");
+
+      updateWaEngineHostUi();
+      const avail = getWaEngineAvailability();
+      if (!avail.canUse) {
+        if (qrContainer) {
+          qrContainer.innerHTML = `
+            <div class="w-full max-w-[14rem] aspect-square rounded-xl border border-amber-200 flex flex-col items-center justify-center p-4 text-center bg-amber-50 mx-auto">
+              <i data-lucide="wifi-off" class="w-8 h-8 text-amber-700 mb-2"></i>
+              <p class="text-[11px] text-amber-900 font-medium">WhatsApp engine not reachable from this page</p>
+            </div>`;
+        }
+        if (qrStatusText) {
+          qrStatusText.innerHTML = '<span class="text-amber-800 text-xs leading-relaxed">' + (avail.message || '') + '</span>';
+        }
+        lucide.createIcons();
+        return;
+      }
 
       try {
         const res = await fetch("/api/whatsapp/qr");
@@ -6205,6 +6257,7 @@
     window.addEventListener('DOMContentLoaded', async () => {
       initTheme();
       lucide.createIcons();
+      updateWaEngineHostUi();
       BrowserMemoryStore.load();
       initPrivacyBanner();
       await loadAuthUser();
