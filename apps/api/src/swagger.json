@@ -1,0 +1,164 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "WhatsFlow API",
+    "version": "1.0.0",
+    "description": "Production-Ready Bulk WhatsApp Customer Messaging Platform API powered by WhatsApp Business Platform Cloud API"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000/api",
+      "description": "Local Development Server"
+    },
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Integrated Server"
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "Register a new user",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "password"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "minLength": 8 },
+                  "companyName": { "type": "string" },
+                  "phone": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "User registered successfully" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Login user and retrieve JWT tokens",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "JWT Access and Refresh tokens" }
+        }
+      }
+    },
+    "/customers": {
+      "get": {
+        "summary": "Get list of customers with search and opt-in filters",
+        "tags": ["Customers"],
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "optInStatus", "in": "query", "schema": { "type": "string", "enum": ["OPTED_IN", "NOT_OPTED_IN", "OPTED_OUT", "UNKNOWN"] } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "List of customers with pagination" } }
+      },
+      "post": {
+        "summary": "Add single customer with E.164 normalization",
+        "tags": ["Customers"],
+        "responses": { "201": { "description": "Customer created" } }
+      }
+    },
+    "/customers/import": {
+      "post": {
+        "summary": "Upload and parse Excel or CSV customer dataset",
+        "tags": ["Customers"],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Validation and import breakdown" } }
+      }
+    },
+    "/templates": {
+      "get": {
+        "summary": "Get reusable message templates",
+        "tags": ["Templates"],
+        "responses": { "200": { "description": "List of templates" } }
+      },
+      "post": {
+        "summary": "Create message template with dynamic variables",
+        "tags": ["Templates"],
+        "responses": { "201": { "description": "Template created" } }
+      }
+    },
+    "/campaigns": {
+      "get": {
+        "summary": "Get campaigns list",
+        "tags": ["Campaigns"],
+        "responses": { "200": { "description": "List of campaigns" } }
+      },
+      "post": {
+        "summary": "Create campaign with recipient screening and opt-out exclusion",
+        "tags": ["Campaigns"],
+        "responses": { "201": { "description": "Campaign created" } }
+      }
+    },
+    "/campaigns/{id}/start": {
+      "post": {
+        "summary": "Start queued campaign",
+        "tags": ["Campaigns"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Campaign queued" } }
+      }
+    },
+    "/whatsapp/config": {
+      "get": {
+        "summary": "Get WhatsApp Business API configuration",
+        "tags": ["WhatsApp API"],
+        "responses": { "200": { "description": "Masked configuration" } }
+      },
+      "post": {
+        "summary": "Save WhatsApp Business API credentials with encryption",
+        "tags": ["WhatsApp API"],
+        "responses": { "200": { "description": "Credentials stored securely" } }
+      }
+    },
+    "/webhooks/whatsapp": {
+      "get": {
+        "summary": "Meta Webhook verification handshake",
+        "tags": ["Webhooks"],
+        "responses": { "200": { "description": "Challenge response" } }
+      },
+      "post": {
+        "summary": "Incoming status callbacks (Sent, Delivered, Read, Failed)",
+        "tags": ["Webhooks"],
+        "responses": { "200": { "description": "Acknowledged" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: whatsflow-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: whatsflow
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Broker for BullMQ
+  redis:
+    image: redis:7.2-alpine
+    container_name: whatsflow-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Express REST API Server
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: whatsflow-api
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongodb:27017/whatsflow
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=whatsflow_super_secret_jwt_key_prod_2026
+      - JWT_REFRESH_SECRET=whatsflow_super_secret_refresh_key_prod_2026
+      - ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - DEMO_MODE=false
+      - WHATSAPP_API_VERSION=v20.0
+      - FRONTEND_URL=http://localhost
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # BullMQ WhatsApp Campaign Worker
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: whatsflow-worker
+    command: ["node", "dist/worker.js"]
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/whatsflow
+      - REDIS_URL=redis://redis:6379
+      - ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - DEMO_MODE=false
+      - WHATSAPP_API_VERSION=v20.0
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # React Frontend (Nginx)
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: whatsflow-web
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+volumes:
+  mongo_data:
+  redis_data:

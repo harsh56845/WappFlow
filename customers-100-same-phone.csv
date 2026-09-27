@@ -1,0 +1,101 @@
+Name,Phone,Email,OrderID,Amount,Date,OptInStatus,Company,City,ProductCategory
+Test User 001,9560386055,testuser001@example.com,ORD-3001,537,2026-09-02,OPTED_IN,Skyline Tech,Delhi,Fashion
+Test User 002,9560386055,testuser002@example.com,ORD-3002,574,2026-09-03,OPTED_IN,GreenLeaf,Bengaluru,Groceries
+Test User 003,9560386055,testuser003@example.com,ORD-3003,611,2026-09-04,OPTED_IN,UrbanMart,Hyderabad,Wellness
+Test User 004,9560386055,testuser004@example.com,ORD-3004,648,2026-09-05,OPTED_IN,Pulse Health,Chennai,Books
+Test User 005,9560386055,testuser005@example.com,ORD-3005,685,2026-09-06,OPTED_IN,Bright Edu,Pune,Home
+Test User 006,9560386055,testuser006@example.com,ORD-3006,722,2026-09-07,OPTED_IN,Apex Logistics,Kolkata,Sports
+Test User 007,9560386055,testuser007@example.com,ORD-3007,759,2026-09-08,OPTED_IN,CloudNine,Ahmedabad,Beauty
+Test User 008,9560386055,testuser008@example.com,ORD-3008,796,2026-09-09,OPTED_IN,SilverStone,Jaipur,Automotive
+Test User 009,9560386055,testuser009@example.com,ORD-3009,833,2026-09-10,OPTED_IN,TrueNorth,Lucknow,Toys
+Test User 010,9560386055,testuser010@example.com,ORD-3010,870,2026-09-11,OPTED_IN,Nova Retail,Mumbai,Electronics
+Test User 011,9560386055,testuser011@example.com,ORD-3011,907,2026-09-12,OPTED_IN,Skyline Tech,Delhi,Fashion
+Test User 012,9560386055,testuser012@example.com,ORD-3012,944,2026-09-13,OPTED_IN,GreenLeaf,Bengaluru,Groceries
+Test User 013,9560386055,testuser013@example.com,ORD-3013,981,2026-09-14,OPTED_IN,UrbanMart,Hyderabad,Wellness
+Test User 014,9560386055,testuser014@example.com,ORD-3014,1018,2026-09-15,OPTED_IN,Pulse Health,Chennai,Books
+Test User 015,9560386055,testuser015@example.com,ORD-3015,1055,2026-09-16,OPTED_IN,Bright Edu,Pune,Home
+Test User 016,9560386055,testuser016@example.com,ORD-3016,1092,2026-09-17,OPTED_IN,Apex Logistics,Kolkata,Sports
+Test User 017,9560386055,testuser017@example.com,ORD-3017,1129,2026-09-18,OPTED_OUT,CloudNine,Ahmedabad,Beauty
+Test User 018,9560386055,testuser018@example.com,ORD-3018,1166,2026-09-19,OPTED_IN,SilverStone,Jaipur,Automotive
+Test User 019,9560386055,testuser019@example.com,ORD-3019,1203,2026-09-20,OPTED_IN,TrueNorth,Lucknow,Toys
+Test User 020,9560386055,testuser020@example.com,ORD-3020,1240,2026-09-21,OPTED_IN,Nova Retail,Mumbai,Electronics
+Test User 021,9560386055,testuser021@example.com,ORD-3021,1277,2026-09-22,OPTED_IN,Skyline Tech,Delhi,Fashion
+Test User 022,9560386055,testuser022@example.com,ORD-3022,1314,2026-09-23,OPTED_IN,GreenLeaf,Bengaluru,Groceries
+Test User 023,9560386055,testuser023@example.com,ORD-3023,1351,2026-09-24,OPTED_IN,UrbanMart,Hyderabad,Wellness
+Test User 024,9560386055,testuser024@example.com,ORD-3024,1388,2026-09-25,OPTED_IN,Pulse Health,Chennai,Books
+Test User 025,9560386055,testuser025@example.com,ORD-3025,1425,2026-09-26,OPTED_IN,Bright Edu,Pune,Home
+Test User 026,9560386055,testuser026@example.com,ORD-3026,1462,2026-09-27,OPTED_IN,Apex Logistics,Kolkata,Sports
+Test User 027,9560386055,testuser027@example.com,ORD-3027,1499,2026-09-28,OPTED_IN,CloudNine,Ahmedabad,Beauty
+Test User 028,9560386055,testuser028@example.com,ORD-3028,1536,2026-09-01,OPTED_IN,SilverStone,Jaipur,Automotive
+Test User 029,9560386055,testuser029@example.com,ORD-3029,1573,2026-09-02,OPTED_IN,TrueNorth,Lucknow,Toys
+Test User 030,9560386055,testuser030@example.com,ORD-3030,1610,2026-09-03,OPTED_IN,Nova Retail,Mumbai,Electronics
+Test User 031,9560386055,testuser031@example.com,ORD-3031,1647,2026-09-04,OPTED_IN,Skyline Tech,Delhi,Fashion
+Test User 032,9560386055,testuser032@example.com,ORD-3032,1684,2026-09-05,OPTED_IN,GreenLeaf,Bengaluru,Groceries
+Test User 033,9560386055,testuser033@example.com,ORD-3033,1721,2026-09-06,OPTED_IN,UrbanMart,Hyderabad,Wellness
+Test User 034,9560386055,testuser034@example.com,ORD-3034,1758,2026-09-07,OPTED_OUT,Pulse Health,Chennai,Books
+Test User 035,9560386055,testuser035@example.com,ORD-3035,1795,2026-09-08,OPTED_IN,Bright Edu,Pune,Home
+Test User 036,9560386055,testuser036@example.com,ORD-3036,1832,2026-09-09,OPTED_IN,Apex Logistics,Kolkata,Sports
+Test User 037,9560386055,testuser037@example.com,ORD-3037,1869,2026-09-10,OPTED_IN,CloudNine,Ahmedabad,Beauty
+Test User 038,9560386055,testuser038@example.com,ORD-3038,1906,2026-09-11,OPTED_IN,SilverStone,Jaipur,Automotive
+Test User 039,9560386055,testuser039@example.com,ORD-3039,1943,2026-09-12,OPTED_IN,TrueNorth,Lucknow,Toys
+Test User 040,9560386055,testuser040@example.com,ORD-3040,1980,2026-09-13,OPTED_IN,Nova Retail,Mumbai,Electronics
+Test User 041,9560386055,testuser041@example.com,ORD-3041,2017,2026-09-14,OPTED_IN,Skyline Tech,Delhi,Fashion
+Test User 042,9560386055,testuser042@example.com,ORD-3042,2054,2026-09-15,OPTED_IN,GreenLeaf,Bengaluru,Groceries
+Test User 043,9560386055,testuser043@example.com,ORD-3043,2091,2026-09-16,OPTED_IN,UrbanMart,Hyderabad,Wellness
+Test User 044,9560386055,testuser044@example.com,ORD-3044,2128,2026-09-17,OPTED_IN,Pulse Health,Chennai,Books
+Test User 045,9560386055,testuser045@example.com,ORD-3045,2165,2026-09-18,OPTED_IN,Bright Edu,Pune,Home
+Test User 046,9560386055,testuser046@example.com,ORD-3046,2202,2026-09-19,OPTED_IN,Apex Logistics,Kolkata,Sports
+Test User 047,9560386055,testuser047@example.com,ORD-3047,2239,2026-09-20,OPTED_IN,CloudNine,Ahmedabad,Beauty
+Test User 048,9560386055,testuser048@example.com,ORD-3048,2276,2026-09-21,OPTED_IN,SilverStone,Jaipur,Automotive
+Test User 049,9560386055,testuser049@example.com,ORD-3049,2313,2026-09-22,OPTED_IN,TrueNorth,Lucknow,Toys
+Test User 050,9560386055,testuser050@example.com,ORD-3050,2350,2026-09-23,OPTED_IN,Nova Retail,Mumbai,Electronics
+Test User 051,9560386055,testuser051@example.com,ORD-3051,2387,2026-09-24,OPTED_OUT,Skyline Tech,Delhi,Fashion
+Test User 052,9560386055,testuser052@example.com,ORD-3052,2424,2026-09-25,OPTED_IN,GreenLeaf,Bengaluru,Groceries
+Test User 053,9560386055,testuser053@example.com,ORD-3053,2461,2026-09-26,OPTED_IN,UrbanMart,Hyderabad,Wellness
+Test User 054,9560386055,testuser054@example.com,ORD-3054,2498,2026-09-27,OPTED_IN,Pulse Health,Chennai,Books
+Test User 055,9560386055,testuser055@example.com,ORD-3055,2535,2026-09-28,OPTED_IN,Bright Edu,Pune,Home
+Test User 056,9560386055,testuser056@example.com,ORD-3056,2572,2026-09-01,OPTED_IN,Apex Logistics,Kolkata,Sports
+Test User 057,9560386055,testuser057@example.com,ORD-3057,2609,2026-09-02,OPTED_IN,CloudNine,Ahmedabad,Beauty
+Test User 058,9560386055,testuser058@example.com,ORD-3058,2646,2026-09-03,OPTED_IN,SilverStone,Jaipur,Automotive
+Test User 059,9560386055,testuser059@example.com,ORD-3059,2683,2026-09-04,OPTED_IN,TrueNorth,Lucknow,Toys
+Test User 060,9560386055,testuser060@example.com,ORD-3060,2720,2026-09-05,OPTED_IN,Nova Retail,Mumbai,Electronics
+Test User 061,9560386055,testuser061@example.com,ORD-3061,2757,2026-09-06,OPTED_IN,Skyline Tech,Delhi,Fashion
+Test User 062,9560386055,testuser062@example.com,ORD-3062,2794,2026-09-07,OPTED_IN,GreenLeaf,Bengaluru,Groceries
+Test User 063,9560386055,testuser063@example.com,ORD-3063,2831,2026-09-08,OPTED_IN,UrbanMart,Hyderabad,Wellness
+Test User 064,9560386055,testuser064@example.com,ORD-3064,2868,2026-09-09,OPTED_IN,Pulse Health,Chennai,Books
+Test User 065,9560386055,testuser065@example.com,ORD-3065,2905,2026-09-10,OPTED_IN,Bright Edu,Pune,Home
+Test User 066,9560386055,testuser066@example.com,ORD-3066,2942,2026-09-11,OPTED_IN,Apex Logistics,Kolkata,Sports
+Test User 067,9560386055,testuser067@example.com,ORD-3067,2979,2026-09-12,OPTED_IN,CloudNine,Ahmedabad,Beauty
+Test User 068,9560386055,testuser068@example.com,ORD-3068,3016,2026-09-13,OPTED_OUT,SilverStone,Jaipur,Automotive
+Test User 069,9560386055,testuser069@example.com,ORD-3069,3053,2026-09-14,OPTED_IN,TrueNorth,Lucknow,Toys
+Test User 070,9560386055,testuser070@example.com,ORD-3070,3090,2026-09-15,OPTED_IN,Nova Retail,Mumbai,Electronics
+Test User 071,9560386055,testuser071@example.com,ORD-3071,3127,2026-09-16,OPTED_IN,Skyline Tech,Delhi,Fashion
+Test User 072,9560386055,testuser072@example.com,ORD-3072,3164,2026-09-17,OPTED_IN,GreenLeaf,Bengaluru,Groceries
+Test User 073,9560386055,testuser073@example.com,ORD-3073,3201,2026-09-18,OPTED_IN,UrbanMart,Hyderabad,Wellness
+Test User 074,9560386055,testuser074@example.com,ORD-3074,3238,2026-09-19,OPTED_IN,Pulse Health,Chennai,Books
+Test User 075,9560386055,testuser075@example.com,ORD-3075,3275,2026-09-20,OPTED_IN,Bright Edu,Pune,Home
+Test User 076,9560386055,testuser076@example.com,ORD-3076,3312,2026-09-21,OPTED_IN,Apex Logistics,Kolkata,Sports
+Test User 077,9560386055,testuser077@example.com,ORD-3077,3349,2026-09-22,OPTED_IN,CloudNine,Ahmedabad,Beauty
+Test User 078,9560386055,testuser078@example.com,ORD-3078,3386,2026-09-23,OPTED_IN,SilverStone,Jaipur,Automotive
+Test User 079,9560386055,testuser079@example.com,ORD-3079,3423,2026-09-24,OPTED_IN,TrueNorth,Lucknow,Toys
+Test User 080,9560386055,testuser080@example.com,ORD-3080,3460,2026-09-25,OPTED_IN,Nova Retail,Mumbai,Electronics
+Test User 081,9560386055,testuser081@example.com,ORD-3081,3497,2026-09-26,OPTED_IN,Skyline Tech,Delhi,Fashion
+Test User 082,9560386055,testuser082@example.com,ORD-3082,3534,2026-09-27,OPTED_IN,GreenLeaf,Bengaluru,Groceries
+Test User 083,9560386055,testuser083@example.com,ORD-3083,3571,2026-09-28,OPTED_IN,UrbanMart,Hyderabad,Wellness
+Test User 084,9560386055,testuser084@example.com,ORD-3084,3608,2026-09-01,OPTED_IN,Pulse Health,Chennai,Books
+Test User 085,9560386055,testuser085@example.com,ORD-3085,3645,2026-09-02,OPTED_OUT,Bright Edu,Pune,Home
+Test User 086,9560386055,testuser086@example.com,ORD-3086,3682,2026-09-03,OPTED_IN,Apex Logistics,Kolkata,Sports
+Test User 087,9560386055,testuser087@example.com,ORD-3087,3719,2026-09-04,OPTED_IN,CloudNine,Ahmedabad,Beauty
+Test User 088,9560386055,testuser088@example.com,ORD-3088,3756,2026-09-05,OPTED_IN,SilverStone,Jaipur,Automotive
+Test User 089,9560386055,testuser089@example.com,ORD-3089,3793,2026-09-06,OPTED_IN,TrueNorth,Lucknow,Toys
+Test User 090,9560386055,testuser090@example.com,ORD-3090,3830,2026-09-07,OPTED_IN,Nova Retail,Mumbai,Electronics
+Test User 091,9560386055,testuser091@example.com,ORD-3091,3867,2026-09-08,OPTED_IN,Skyline Tech,Delhi,Fashion
+Test User 092,9560386055,testuser092@example.com,ORD-3092,3904,2026-09-09,OPTED_IN,GreenLeaf,Bengaluru,Groceries
+Test User 093,9560386055,testuser093@example.com,ORD-3093,3941,2026-09-10,OPTED_IN,UrbanMart,Hyderabad,Wellness
+Test User 094,9560386055,testuser094@example.com,ORD-3094,3978,2026-09-11,OPTED_IN,Pulse Health,Chennai,Books
+Test User 095,9560386055,testuser095@example.com,ORD-3095,4015,2026-09-12,OPTED_IN,Bright Edu,Pune,Home
+Test User 096,9560386055,testuser096@example.com,ORD-3096,4052,2026-09-13,OPTED_IN,Apex Logistics,Kolkata,Sports
+Test User 097,9560386055,testuser097@example.com,ORD-3097,4089,2026-09-14,OPTED_IN,CloudNine,Ahmedabad,Beauty
+Test User 098,9560386055,testuser098@example.com,ORD-3098,4126,2026-09-15,OPTED_IN,SilverStone,Jaipur,Automotive
+Test User 099,9560386055,testuser099@example.com,ORD-3099,4163,2026-09-16,OPTED_IN,TrueNorth,Lucknow,Toys
+Test User 100,9560386055,testuser100@example.com,ORD-3100,4200,2026-09-17,OPTED_IN,Nova Retail,Mumbai,Electronics

@@ -1,0 +1,14 @@
+Hi {{Name}},
+
+Thank you for your order with {{Company}}!
+
+Order ID: {{OrderID}}
+Amount: ₹{{Amount}}
+Date: {{Date}}
+Category: {{ProductCategory}}
+Location: {{City}}, {{Country}}
+
+Contact: {{Email}} | {{Phone}}
+Opt-in: {{OptInStatus}}
+
+We will keep you updated on your order. Reply STOP to opt out.

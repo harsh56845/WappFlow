@@ -1,0 +1,29 @@
+{
+  "name": "whatsflow-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WhatsFlow - Production-Ready Bulk WhatsApp Customer Messaging Platform",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "start": "node serve.js",
+    "start:lan": "HOST=0.0.0.0 node serve.js",
+    "build:pages": "mkdir -p _site && cp -r public/* _site/ && node scripts/prepare-github-pages.js _site",
+    "dev": "node serve.js",
+    "dev:api": "npm --workspace=apps/api run dev",
+    "dev:web": "npm --workspace=apps/web run dev",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
+    "pino": "^10.3.1",
+    "qrcode": "^1.5.4"
+  }
+}
