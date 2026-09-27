@@ -20,10 +20,14 @@ The server must be reachable from the browser and already allows CORS (WappFlow�
 ## One-time GitHub setup
 
 1. Push this repo to GitHub.
-2. **Settings → Pages → Build and deployment**
-   - Source: **GitHub Actions**
-3. Push to `main` (or run workflow **Deploy GitHub Pages** manually).
-4. Open: `https://<username>.github.io/<repo-name>/`
+2. **Enable Pages (required)** — if the workflow fails with `Failed to create deployment (status: 404)` or *Ensure GitHub Pages has been enabled*, Pages is still off:
+   - Open [WappFlow → Settings → Pages](https://github.com/harsh56845/WappFlow/settings/pages) (repo **Admin** only).
+   - Under **Build and deployment → Source**, choose **GitHub Actions** (not “Deploy from a branch”).
+   - Save. You do not need to pick a branch when using Actions.
+3. Push to `main` or re-run **Actions → Deploy GitHub Pages → Re-run all jobs**.
+4. Open: `https://harsh56845.github.io/WappFlow/`
+
+If **Source** has no “GitHub Actions” option, confirm the repo is public (or you have GitHub Pro for private Pages) and you are logged in as the owner (`harsh56845`), not a read-only collaborator.
 
 ## Local full stack (WhatsApp + UI)
 
