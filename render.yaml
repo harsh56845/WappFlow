@@ -12,3 +12,7 @@ services:
         value: "20"
       - key: HOST
         value: "0.0.0.0"
+      - key: WAPPFLOW_DEFAULT_COUNTRY_CODE
+        value: "91"
+      - key: WHATSAPP_VALIDATE_NUMBERS
+        value: "0"

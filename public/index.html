@@ -4667,7 +4667,7 @@
             <td class="py-3 px-4 font-mono text-xs">${m.phone}</td>
             <td class="py-3 px-4 max-w-xs truncate" title="${m.personalizedContent || ''}">${m.personalizedContent || '—'}</td>
             <td class="py-3 px-4 font-mono text-[11px] text-slate-400">${m.whatsappMessageId || '—'}</td>
-            <td class="py-3 px-4">${renderMessageStatus(m.status)}</td>
+            <td class="py-3 px-4" title="${isFailed && m.errorMessage ? String(m.errorMessage).replace(/"/g, '&quot;') : ''}">${renderMessageStatus(m.status)}${isFailed && m.errorMessage ? `<div class="text-[10px] text-rose-600 mt-0.5 max-w-[12rem] truncate">${m.errorMessage}</div>` : ''}</td>
             <td class="py-3 px-4 text-slate-500">${m.readAt ? new Date(m.readAt).toLocaleTimeString() : (m.deliveredAt ? new Date(m.deliveredAt).toLocaleTimeString() : (m.failedAt ? '<span class="text-rose-600">Failed</span>' : '—'))}</td>
             <td class="py-3 px-4 text-right">${actionHtml}</td>
           </tr>
@@ -5200,7 +5200,8 @@
         const json = await res.json();
         if (json.success) {
           whatsAppSessionData = json.data;
-          isWhatsAppConnected = json.data.status === "CONNECTED";
+          isWhatsAppConnected = json.data.readyToSend === true
+            || (json.data.readyToSend === undefined && json.data.status === "CONNECTED");
           lastSessionStatusAt = now;
           updateWhatsAppStatusBadges(json.data);
         }
@@ -5217,7 +5218,16 @@
       const badge = document.getElementById("conn-active-badge");
       const badgeText = document.getElementById("conn-active-text");
 
-      if (data.status === "CONNECTED") {
+      if (data.status === "RECONNECTING") {
+        if (tbDot) tbDot.className = "w-2 h-2 rounded-full bg-amber-500 mr-1.5 animate-pulse";
+        if (tbText) tbText.innerText = "Reconnecting WhatsApp…";
+        if (sbDot) sbDot.className = "w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5 animate-pulse";
+        if (sbText) sbText.innerText = "Reconnecting…";
+        if (badge && badgeText) {
+          badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 flex items-center";
+          badgeText.innerText = "🟡 Reconnecting WhatsApp (wait or scan QR again)";
+        }
+      } else if (data.status === "CONNECTED" && data.readyToSend) {
         const nameOrPhone = data.phoneNumber || data.pushName || "Linked";
         if (tbDot) tbDot.className = "w-2 h-2 rounded-full bg-wa mr-1.5 animate-pulse";
         if (tbText) tbText.innerText = "Connected: " + nameOrPhone;
@@ -5226,6 +5236,13 @@
         if (badge && badgeText) {
           badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-green-50 text-green-800 border border-green-300 flex items-center";
           badgeText.innerText = "🟢 WhatsApp Connected: " + data.phoneNumber + " (" + (data.pushName || "Device") + ")";
+        }
+      } else if (data.status === "CONNECTED" && !data.readyToSend) {
+        if (tbDot) tbDot.className = "w-2 h-2 rounded-full bg-amber-500 mr-1.5 animate-pulse";
+        if (tbText) tbText.innerText = "Link not ready — retry QR";
+        if (badge && badgeText) {
+          badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 flex items-center";
+          badgeText.innerText = "🟡 Session stale — disconnect and scan QR again";
         }
       } else if (data.status === "SCAN_QR" || data.status === "INITIALIZING") {
         if (tbDot) tbDot.className = "w-2 h-2 rounded-full bg-amber-500 mr-1.5 animate-ping";
@@ -5278,10 +5295,10 @@
         if (json.success) {
           const d = json.data;
           whatsAppSessionData = d;
-          isWhatsAppConnected = d.status === "CONNECTED";
+          isWhatsAppConnected = d.readyToSend === true;
           updateWhatsAppStatusBadges(d);
 
-          if (d.status === "CONNECTED") {
+          if (d.status === "CONNECTED" && d.readyToSend) {
             if (qrConnectedCard) qrConnectedCard.classList.remove("hidden");
             if (qrUnlinkedCard) qrUnlinkedCard.classList.add("hidden");
             const phoneEl = document.getElementById("qr-connected-phone");
@@ -5446,6 +5463,12 @@
       resultBox.innerText = "Dispatching message automatically via WhatsApp engine...";
 
       try {
+        await loadSessionStatus(true);
+        if (!isWhatsAppConnected) {
+          resultBox.className = "text-xs p-3 rounded-xl bg-rose-50 text-rose-700 font-semibold border border-rose-200";
+          resultBox.innerText = "✗ WhatsApp is not ready to send yet. Wait for Reconnecting to finish, or Disconnect → scan QR again.";
+          return;
+        }
         const res = await fetch("/api/whatsapp/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -5481,7 +5504,7 @@
       BrowserMemoryStore.save();
       refreshCampaignStatus();
 
-      await loadSessionStatus();
+      await loadSessionStatus(true);
       if (!isWhatsAppConnected) {
         showToast("WhatsApp device is not linked. Please scan QR in Settings for automated background sending.", "error");
         switchSettingsTab("qr");
@@ -5545,6 +5568,10 @@
             } else {
               msg.failedAt = msg.failedAt || new Date().toISOString();
               msg.errorMessage = msg.errorMessage || json.error || "Dispatch failed";
+              if (json.status === 'DISCONNECTED' || /not connected|scan the qr|reconnecting/i.test(String(json.error || ''))) {
+                isWhatsAppConnected = false;
+                showToast(json.error || 'WhatsApp disconnected — link again in Settings.', 'error');
+              }
             }
           } catch (netErr) {
             msg.status = "FAILED";
