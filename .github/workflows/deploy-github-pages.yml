@@ -24,12 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-        with:
-          enablement: true
-
       - name: Build static site
+        env:
+          WAPPFLOW_WA_ENGINE_URL: ${{ vars.WAPPFLOW_WA_ENGINE_URL }}
         run: |
           mkdir -p _site
           cp -r public/* _site/
