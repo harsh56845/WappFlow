@@ -394,7 +394,7 @@
           <div class="space-y-1.5">
             <p class="text-sm font-bold text-slate-900 dark:text-slate-50">Your data stays on this device — secure & private</p>
             <p class="text-xs text-slate-600 dark:text-slate-200 leading-relaxed max-w-3xl">
-              WappFlow does <strong>not</strong> store contacts, campaigns, templates, or message history on any backend database. Everything lives in <strong>this browser tab</strong> (<code class="text-[11px] bg-slate-100 px-1 rounded">sessionStorage</code>). Closing the tab or clearing site data removes it unless you save a copy.
+              WappFlow does <strong>not</strong> store contacts, campaigns, templates, or message history on any backend database. Everything lives in <strong>this browser</strong> (<code class="text-[11px] bg-slate-100 px-1 rounded">localStorage</code>) until you use <strong>Clear RAM</strong> or clear site data in the browser.
               <span class="text-brand-800 font-semibold">Download your CSV records regularly</span> so you never lose dispatch logs or customer lists.
             </p>
           </div>
@@ -1107,13 +1107,14 @@
                   <th class="py-3 px-4">Personalized Preview</th>
                   <th class="py-3 px-4">WhatsApp ID</th>
                   <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4">Delay after send (s)</th>
                   <th class="py-3 px-4">Delivered / Read At</th>
                   <th class="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody id="cd-messages-table-body" class="divide-y divide-slate-100">
                 <tr>
-                  <td colspan="8" class="py-6 text-center text-slate-400">Loading messages...</td>
+                  <td colspan="9" class="py-6 text-center text-slate-400">Loading messages...</td>
                 </tr>
               </tbody>
             </table>
@@ -1295,10 +1296,23 @@
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-xs font-semibold text-slate-700 mb-1.5">Delay Between Messages (Seconds)</label>
-                  <input type="number" id="cfg-send-delay" min="0" max="60" value="3" step="1" class="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
-                  <p class="text-[11px] text-slate-400 mt-1">0 = no extra wait between messages (WhatsApp still needs ~1–3s per send). Recommended: 2–5s to reduce spam risk.</p>
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-semibold text-slate-700 mb-1.5">Delay Between Messages (Seconds) — random</label>
+                  <div class="grid grid-cols-2 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+                    <div>
+                      <label class="block text-[10px] font-medium text-slate-500 mb-1">Lower limit</label>
+                      <input type="number" id="cfg-send-delay-min" min="0" max="300" value="3" step="1" class="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none" onchange="normalizeSendDelayRangeInputs()">
+                    </div>
+                    <div>
+                      <label class="block text-[10px] font-medium text-slate-500 mb-1">Upper limit</label>
+                      <input type="number" id="cfg-send-delay-max" min="0" max="300" value="5" step="1" class="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none" onchange="normalizeSendDelayRangeInputs()">
+                    </div>
+                    <button type="button" onclick="saveSendDelayRange()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-sm transition whitespace-nowrap h-[34px]">
+                      Save delay
+                    </button>
+                  </div>
+                  <p id="cfg-send-delay-save-status" class="text-[11px] text-brand-700 mt-1 hidden"></p>
+                  <p class="text-[11px] text-slate-400 mt-1.5">Each message waits a <strong>random</strong> number of seconds between lower and upper (inclusive). Use the same value on both for a fixed delay. 0 on both = no extra wait (WhatsApp still needs ~1–3s per send). Saved values stay in this browser until you clear site data.</p>
                 </div>
                 <div>
                   <label class="block text-xs font-semibold text-slate-700 mb-1.5">Fallback Option (If unlinked)</label>
@@ -1357,7 +1371,7 @@
                 <h4 class="text-sm font-bold">Secure by design — nothing stored on our backend</h4>
               </div>
               <p class="text-xs text-slate-300 leading-relaxed">
-                Customer phone numbers, templates, campaigns, suppression lists, and message dispatch history are saved only in <strong class="text-white">this browser</strong> using <code class="text-brand-200">sessionStorage</code>. WhatsApp QR linking is also <strong class="text-white">per browser/device</strong> (a private id in <code class="text-brand-200">localStorage</code>) — opening the app on another phone or laptop shows its own QR, not another device&apos;s linked number. The server stores each browser&apos;s WhatsApp session under <code class="text-brand-200">sessions/&lt;your-client-id&gt;</code> on the host machine only.
+                Customer phone numbers, templates, campaigns, message history, delay settings, and WhatsApp link status snapshots are saved in <strong class="text-white">this browser</strong> (<code class="text-brand-200">localStorage</code>) until you clear site data or tap <strong class="text-white">Clear RAM</strong>. WhatsApp sending still uses a short-lived link on the server while <code class="text-brand-200">npm start</code> / Render is running; your workspace data stays in the browser.
               </p>
               <p class="text-xs text-amber-200/95 leading-relaxed bg-amber-500/10 border border-amber-400/30 rounded-xl px-3 py-2.5">
                 <strong class="text-amber-100">Important:</strong> If you close this tab, refresh after a crash, or clear browser site data, unsaved work is gone. Use <strong>Download CSV Records</strong> (top bar or below) after every import and campaign.
@@ -2503,68 +2517,98 @@
         connectionMode: "QR_CODE",
         dispatchMethod: "WEB_TAB",
         sendDelay: 3,
+        sendDelayMin: 3,
+        sendDelayMax: 5,
         businessAccountId: "",
         phoneNumberId: "",
         accessToken: "",
         webhookVerifyToken: "whatsflow_browser_secure"
       },
+      whatsappLink: null,
       auditLogs: [
         {
           timestamp: new Date().toISOString(),
           action: "BROWSER_INIT",
           resource: "MEMORY_STORE",
-          metadata: { storage: "sessionStorage", status: "ready" }
+          metadata: { storage: "localStorage", status: "ready" }
         }
       ]
     };
 
     const BrowserMemoryStore = {
       STORAGE_KEY: "wappflow_ram_store_clean",
+      LEGACY_SESSION_KEY: "wappflow_ram_store_clean",
       data: JSON.parse(JSON.stringify(DEFAULT_STORE)),
+
+      readRaw() {
+        try {
+          const fromLocal = localStorage.getItem(this.STORAGE_KEY);
+          if (fromLocal) return fromLocal;
+          const fromSession = sessionStorage.getItem(this.LEGACY_SESSION_KEY);
+          if (fromSession) return fromSession;
+          sessionStorage.removeItem("whatsflow_ram_store");
+        } catch (_) {}
+        return null;
+      },
+
+      normalizeLoadedData() {
+        if (!this.data.settings) this.data.settings = JSON.parse(JSON.stringify(DEFAULT_STORE.settings));
+        if (!Array.isArray(this.data.customers)) this.data.customers = [];
+        if (!Array.isArray(this.data.suppression)) this.data.suppression = [];
+        if (!Array.isArray(this.data.templates)) this.data.templates = [];
+        if (!Array.isArray(this.data.campaigns)) this.data.campaigns = [];
+        if (!Array.isArray(this.data.messages)) this.data.messages = [];
+        if (!Object.prototype.hasOwnProperty.call(this.data, 'whatsappLink')) this.data.whatsappLink = null;
+
+        if (this.data.customers.some(c => c.id === "cust_1") ||
+            this.data.campaigns.some(c => c.id?.startsWith("cmp_demo")) ||
+            this.data.templates.some(t => t.id === "tpl_1")) {
+          this.data = JSON.parse(JSON.stringify(DEFAULT_STORE));
+        }
+      },
 
       load() {
         try {
-          // Clear any legacy demo data from prior sessions
-          sessionStorage.removeItem("whatsflow_ram_store");
-
-          const raw = sessionStorage.getItem(this.STORAGE_KEY);
+          const raw = this.readRaw();
           if (raw) {
             this.data = JSON.parse(raw);
-            // Ensure all arrays exist and clean out any legacy demo objects
-            if (!Array.isArray(this.data.customers)) this.data.customers = [];
-            if (!Array.isArray(this.data.suppression)) this.data.suppression = [];
-            if (!Array.isArray(this.data.templates)) this.data.templates = [];
-            if (!Array.isArray(this.data.campaigns)) this.data.campaigns = [];
-            if (!Array.isArray(this.data.messages)) this.data.messages = [];
-
-            if (this.data.customers.some(c => c.id === "cust_1") || 
-                this.data.campaigns.some(c => c.id?.startsWith("cmp_demo")) ||
-                this.data.templates.some(t => t.id === "tpl_1")) {
-              this.data = JSON.parse(JSON.stringify(DEFAULT_STORE));
+            this.normalizeLoadedData();
+            if (!localStorage.getItem(this.STORAGE_KEY) && raw) {
               this.save();
             }
+            try {
+              sessionStorage.removeItem(this.LEGACY_SESSION_KEY);
+            } catch (_) {}
           } else {
             this.data = JSON.parse(JSON.stringify(DEFAULT_STORE));
             this.save();
           }
         } catch (e) {
-          console.warn("Could not read sessionStorage, using in-memory heap", e);
+          console.warn("Could not read browser storage, using in-memory heap", e);
           this.data = JSON.parse(JSON.stringify(DEFAULT_STORE));
         }
       },
 
       save() {
         try {
-          sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
         } catch (e) {
-          console.warn("Could not write sessionStorage", e);
+          console.warn("Could not write localStorage", e);
         }
         updateMemoryStatsUI();
       },
 
       purge() {
         try {
-          sessionStorage.removeItem(this.STORAGE_KEY);
+          localStorage.removeItem(this.STORAGE_KEY);
+          sessionStorage.removeItem(this.LEGACY_SESSION_KEY);
+          sessionStorage.removeItem("whatsflow_ram_store");
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('wappflow_')) keysToRemove.push(k);
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
         } catch (_) {}
         this.data = JSON.parse(JSON.stringify(DEFAULT_STORE));
         this.data.auditLogs = [{
@@ -2633,14 +2677,37 @@
       if (statSup) statSup.innerText = (BrowserMemoryStore.data.suppression || []).length;
     }
 
+    function persistWhatsAppSnapshot(data) {
+      if (!data || typeof data !== 'object') return;
+      BrowserMemoryStore.data.whatsappLink = {
+        clientId: getWaClientId(),
+        status: data.status,
+        readyToSend: data.readyToSend,
+        phoneNumber: data.phoneNumber || null,
+        pushName: data.pushName || null,
+        lastError: data.lastError || null,
+        qrDataUrl: data.qrDataUrl || BrowserMemoryStore.data.whatsappLink?.qrDataUrl || null,
+        lastSyncAt: new Date().toISOString()
+      };
+      BrowserMemoryStore.save();
+    }
+
+    function restoreWhatsAppSnapshotToUi() {
+      const snap = BrowserMemoryStore.data.whatsappLink;
+      if (!snap || !snap.lastSyncAt) return;
+      updateWhatsAppStatusBadges(snap);
+    }
+
     function purgeMemory() {
-      if (!confirm('⚠️ Are you sure you want to PURGE ALL data from browser memory?\n\nThis will clear all customers, campaigns, messages and temporary data in this tab. Nothing is stored on any server.')) {
+      if (!confirm('⚠️ Are you sure you want to PURGE ALL data from this browser?\n\nThis clears customers, campaigns, templates, messages, saved delays, and WhatsApp UI cache from localStorage. WhatsApp on the server may still be linked until you disconnect in Settings.')) {
         return;
       }
+      fetch('/api/whatsapp/disconnect', { method: 'POST' }).catch(() => {});
       BrowserMemoryStore.purge();
       customersList = [];
       templatesList = [];
-      showToast('Browser RAM memory cleared completely!', 'info');
+      isWhatsAppConnected = false;
+      showToast('All browser data cleared!', 'info');
       loadCustomers();
       loadTemplates();
       loadCampaigns();
@@ -4608,7 +4675,7 @@
 
       const tbody = document.getElementById('cd-messages-table-body');
       if (json.data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-slate-400">No messages found matching this filter.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="py-6 text-center text-slate-400">No messages found matching this filter.</td></tr>';
         updateBatchActionBar();
         return;
       }
@@ -4668,6 +4735,7 @@
             <td class="py-3 px-4 max-w-xs truncate" title="${m.personalizedContent || ''}">${m.personalizedContent || '—'}</td>
             <td class="py-3 px-4 font-mono text-[11px] text-slate-400">${m.whatsappMessageId || '—'}</td>
             <td class="py-3 px-4" title="${isFailed && m.errorMessage ? String(m.errorMessage).replace(/"/g, '&quot;') : ''}">${renderMessageStatus(m.status)}${isFailed && m.errorMessage ? `<div class="text-[10px] text-rose-600 mt-0.5 max-w-[12rem] truncate">${m.errorMessage}</div>` : ''}</td>
+            <td class="py-3 px-4">${renderMessageSendInSecCell(m)}</td>
             <td class="py-3 px-4 text-slate-500">${m.readAt ? new Date(m.readAt).toLocaleTimeString() : (m.deliveredAt ? new Date(m.deliveredAt).toLocaleTimeString() : (m.failedAt ? '<span class="text-rose-600">Failed</span>' : '—'))}</td>
             <td class="py-3 px-4 text-right">${actionHtml}</td>
           </tr>
@@ -4763,6 +4831,99 @@
       }
     }
 
+    const SEND_DELAY_MIN_STORAGE_KEY = 'wappflow_send_delay_min_sec';
+    const SEND_DELAY_MAX_STORAGE_KEY = 'wappflow_send_delay_max_sec';
+
+    function normalizeSendDelayRangeInputs() {
+      const minEl = document.getElementById('cfg-send-delay-min');
+      const maxEl = document.getElementById('cfg-send-delay-max');
+      if (!minEl || !maxEl) return;
+      let minSec = parseInt(minEl.value, 10);
+      let maxSec = parseInt(maxEl.value, 10);
+      if (!Number.isFinite(minSec) || minSec < 0) minSec = 0;
+      if (!Number.isFinite(maxSec) || maxSec < 0) maxSec = 0;
+      if (maxSec < minSec) maxSec = minSec;
+      minEl.value = String(minSec);
+      maxEl.value = String(maxSec);
+    }
+
+    function loadSendDelayRangeFromStorage() {
+      const minEl = document.getElementById('cfg-send-delay-min');
+      const maxEl = document.getElementById('cfg-send-delay-max');
+      if (!minEl || !maxEl) return;
+      try {
+        const st = BrowserMemoryStore.data.settings || {};
+        let savedMin = st.sendDelayMin != null ? String(st.sendDelayMin) : null;
+        let savedMax = st.sendDelayMax != null ? String(st.sendDelayMax) : null;
+        if (savedMin == null) savedMin = localStorage.getItem(SEND_DELAY_MIN_STORAGE_KEY);
+        if (savedMax == null) savedMax = localStorage.getItem(SEND_DELAY_MAX_STORAGE_KEY);
+        if (savedMin != null && savedMin !== '') minEl.value = savedMin;
+        if (savedMax != null && savedMax !== '') maxEl.value = savedMax;
+      } catch (_) {}
+      normalizeSendDelayRangeInputs();
+    }
+
+    function saveSendDelayRange() {
+      normalizeSendDelayRangeInputs();
+      const { minSec, maxSec } = getSendDelayRangeSec();
+      const status = document.getElementById('cfg-send-delay-save-status');
+      try {
+        if (!BrowserMemoryStore.data.settings) {
+          BrowserMemoryStore.data.settings = JSON.parse(JSON.stringify(DEFAULT_STORE.settings));
+        }
+        BrowserMemoryStore.data.settings.sendDelayMin = minSec;
+        BrowserMemoryStore.data.settings.sendDelayMax = maxSec;
+        BrowserMemoryStore.save();
+        localStorage.setItem(SEND_DELAY_MIN_STORAGE_KEY, String(minSec));
+        localStorage.setItem(SEND_DELAY_MAX_STORAGE_KEY, String(maxSec));
+        if (status) {
+          status.textContent = `Saved: ${minSec === maxSec ? minSec + 's fixed' : minSec + '–' + maxSec + 's random'} (stored in this browser with your workspace).`;
+          status.classList.remove('hidden');
+        }
+        showToast('Delay settings saved', 'success');
+      } catch (e) {
+        showToast('Could not save delay settings', 'error');
+      }
+    }
+
+    function getSendDelayRangeSec() {
+      normalizeSendDelayRangeInputs();
+      const minSec = parseInt(document.getElementById('cfg-send-delay-min')?.value || '3', 10);
+      const maxSec = parseInt(document.getElementById('cfg-send-delay-max')?.value || '5', 10);
+      const lo = Number.isFinite(minSec) ? Math.max(0, minSec) : 0;
+      const hi = Number.isFinite(maxSec) ? Math.max(0, maxSec) : lo;
+      return { minSec: lo, maxSec: Math.max(lo, hi) };
+    }
+
+    function pickRandomSendDelaySec() {
+      const { minSec, maxSec } = getSendDelayRangeSec();
+      const span = maxSec - minSec;
+      return span === 0 ? minSec : minSec + Math.floor(Math.random() * (span + 1));
+    }
+
+    function getRandomSendDelayMs() {
+      return pickRandomSendDelaySec() * 1000;
+    }
+
+    function recordDelayAfterSend(msg, waitSec) {
+      if (!msg) return;
+      const sec = Math.max(0, Number(waitSec) || 0);
+      msg.plannedGapAfterSec = sec;
+      msg.delayAfterSendSec = sec;
+    }
+
+    function renderMessageSendInSecCell(m) {
+      if (m.status === 'PENDING' || m.status === 'QUEUED') {
+        return '—';
+      }
+      const sec = m.delayAfterSendSec != null ? m.delayAfterSendSec : m.plannedGapAfterSec;
+      if (sec == null || sec === '') return '—';
+      if (Number(sec) === 0) {
+        return '<span class="font-mono text-slate-400">0</span>';
+      }
+      return `<span class="font-mono text-slate-700 font-medium">${sec}</span><span class="text-[10px] text-slate-400"> s</span>`;
+    }
+
     async function batchSendSelected() {
       if (selectedMessageIds.size === 0) return;
       if (!confirm(`Dispatch / send ${selectedMessageIds.size} selected message(s)?`)) return;
@@ -4771,11 +4932,12 @@
       const ids = Array.from(selectedMessageIds);
 
       if (isWhatsAppConnected) {
-        showToast(`Dispatching ${ids.length} message(s) automatically in background...`, 'info');
-        const delaySec = parseInt(document.getElementById('cfg-send-delay')?.value || '3', 10);
-        const delayMs = Math.max(0, Number.isFinite(delaySec) ? delaySec * 1000 : 3000);
+        const { minSec, maxSec } = getSendDelayRangeSec();
+        const rangeHint = minSec === maxSec ? `${minSec}s` : `${minSec}–${maxSec}s random`;
+        showToast(`Dispatching ${ids.length} message(s) (${rangeHint} between sends)...`, 'info');
 
-        for (const id of ids) {
+        for (let i = 0; i < ids.length; i++) {
+          const id = ids[i];
           const msg = (BrowserMemoryStore.data.messages || []).find(m => m.id === id);
           if (!msg || msg.status === 'SENT' || msg.status === 'DELIVERED') continue;
 
@@ -4806,7 +4968,17 @@
           loadCampaignMessages();
           loadCampaigns();
 
-          await new Promise(r => setTimeout(r, delayMs));
+          const moreInBatch = ids.slice(i + 1).some((nextId) => {
+            const nm = (BrowserMemoryStore.data.messages || []).find(m => m.id === nextId);
+            return nm && nm.status !== 'SENT' && nm.status !== 'DELIVERED';
+          });
+          const waitSec = moreInBatch ? pickRandomSendDelaySec() : 0;
+          recordDelayAfterSend(msg, waitSec);
+          BrowserMemoryStore.save();
+          loadCampaignMessages();
+          if (waitSec > 0) {
+            await new Promise(r => setTimeout(r, waitSec * 1000));
+          }
         }
 
         clearMessageSelection();
@@ -5153,6 +5325,7 @@
         if (tabQr) tabQr.className = activeClass;
         if (secQr) secQr.classList.remove('hidden');
         loadWaEngineUrlField();
+        loadSendDelayRangeFromStorage();
         loadSessionStatus();
         loadQrCode();
         startQrPolling();
@@ -5203,6 +5376,7 @@
           isWhatsAppConnected = json.data.readyToSend === true
             || (json.data.readyToSend === undefined && json.data.status === "CONNECTED");
           lastSessionStatusAt = now;
+          persistWhatsAppSnapshot(json.data);
           updateWhatsAppStatusBadges(json.data);
         }
       } catch (err) {
@@ -5218,16 +5392,7 @@
       const badge = document.getElementById("conn-active-badge");
       const badgeText = document.getElementById("conn-active-text");
 
-      if (data.status === "RECONNECTING") {
-        if (tbDot) tbDot.className = "w-2 h-2 rounded-full bg-amber-500 mr-1.5 animate-pulse";
-        if (tbText) tbText.innerText = "Reconnecting WhatsApp…";
-        if (sbDot) sbDot.className = "w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5 animate-pulse";
-        if (sbText) sbText.innerText = "Reconnecting…";
-        if (badge && badgeText) {
-          badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 flex items-center";
-          badgeText.innerText = "🟡 Reconnecting WhatsApp (wait or scan QR again)";
-        }
-      } else if (data.status === "CONNECTED" && data.readyToSend) {
+      if (data.status === "CONNECTED" && (data.readyToSend || data.phoneNumber)) {
         const nameOrPhone = data.phoneNumber || data.pushName || "Linked";
         if (tbDot) tbDot.className = "w-2 h-2 rounded-full bg-wa mr-1.5 animate-pulse";
         if (tbText) tbText.innerText = "Connected: " + nameOrPhone;
@@ -5237,21 +5402,18 @@
           badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-green-50 text-green-800 border border-green-300 flex items-center";
           badgeText.innerText = "🟢 WhatsApp Connected: " + data.phoneNumber + " (" + (data.pushName || "Device") + ")";
         }
-      } else if (data.status === "CONNECTED" && !data.readyToSend) {
+      } else if (data.status === "SCAN_QR" || data.status === "INITIALIZING" || data.status === "RECONNECTING") {
+        const restoring = data.phoneNumber && !data.qrDataUrl;
+        const label = restoring ? "Restoring WhatsApp session…" : (data.status === "SCAN_QR" ? "Scan QR Code" : "Connecting…");
         if (tbDot) tbDot.className = "w-2 h-2 rounded-full bg-amber-500 mr-1.5 animate-pulse";
-        if (tbText) tbText.innerText = "Link not ready — retry QR";
+        if (tbText) tbText.innerText = label;
+        if (sbDot) sbDot.className = "w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5 animate-pulse";
+        if (sbText) sbText.innerText = restoring ? "Restoring…" : "Scan QR";
         if (badge && badgeText) {
           badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 flex items-center";
-          badgeText.innerText = "🟡 Session stale — disconnect and scan QR again";
-        }
-      } else if (data.status === "SCAN_QR" || data.status === "INITIALIZING") {
-        if (tbDot) tbDot.className = "w-2 h-2 rounded-full bg-amber-500 mr-1.5 animate-ping";
-        if (tbText) tbText.innerText = "Scan QR Code";
-        if (sbDot) sbDot.className = "w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5";
-        if (sbText) sbText.innerText = "Scan QR";
-        if (badge && badgeText) {
-          badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300 flex items-center";
-          badgeText.innerText = "🟡 Waiting for QR Scan...";
+          badgeText.innerText = restoring
+            ? `🟡 Restoring link for ${data.phoneNumber}…`
+            : "🟡 Waiting for QR Scan…";
         }
       } else {
         if (tbDot) tbDot.className = "w-2 h-2 rounded-full bg-slate-400 mr-1.5";
@@ -5296,23 +5458,39 @@
           const d = json.data;
           whatsAppSessionData = d;
           isWhatsAppConnected = d.readyToSend === true;
+          persistWhatsAppSnapshot(d);
           updateWhatsAppStatusBadges(d);
 
-          if (d.status === "CONNECTED" && d.readyToSend) {
+          const showLinkedCard = d.readyToSend || (d.status === "CONNECTED" && d.phoneNumber);
+          if (showLinkedCard) {
             if (qrConnectedCard) qrConnectedCard.classList.remove("hidden");
             if (qrUnlinkedCard) qrUnlinkedCard.classList.add("hidden");
             const phoneEl = document.getElementById("qr-connected-phone");
             if (phoneEl) phoneEl.innerText = d.phoneNumber || "Linked Device";
             const nameEl = document.getElementById("qr-connected-name");
             if (nameEl) nameEl.innerText = d.pushName || "WhatsApp User";
-            stopQrPolling();
+            if (d.readyToSend) stopQrPolling();
           } else {
             if (qrConnectedCard) qrConnectedCard.classList.add("hidden");
             if (qrUnlinkedCard) qrUnlinkedCard.classList.remove("hidden");
 
-            if (d.qrDataUrl) {
+            const cachedQr = d.qrDataUrl || (!d.phoneNumber ? BrowserMemoryStore.data.whatsappLink?.qrDataUrl : null);
+            if (d.phoneNumber && !cachedQr) {
               if (qrContainer) {
-                qrContainer.innerHTML = `<img src="${d.qrDataUrl}" alt="WhatsApp QR Code" class="w-full h-full max-w-[14rem] max-h-[14rem] object-contain rounded-xl border border-slate-200 shadow-sm mx-auto p-1 bg-white">`;
+                qrContainer.innerHTML = `
+                  <div class="w-full max-w-[14rem] aspect-square rounded-xl border border-brand-200 flex flex-col items-center justify-center p-4 text-center bg-brand-50 mx-auto">
+                    <i data-lucide="loader-2" class="w-8 h-8 text-brand-600 animate-spin mb-2"></i>
+                    <p class="text-xs text-brand-900 font-semibold">Restoring WhatsApp session…</p>
+                    <p class="text-[11px] text-brand-700/80 mt-1 font-mono">${d.phoneNumber}</p>
+                  </div>`;
+              }
+              if (qrStatusText) {
+                qrStatusText.innerText = "Already linked — reconnecting to the server (no need to scan again).";
+              }
+              lucide.createIcons();
+            } else if (cachedQr) {
+              if (qrContainer) {
+                qrContainer.innerHTML = `<img src="${cachedQr}" alt="WhatsApp QR Code" class="w-full h-full max-w-[14rem] max-h-[14rem] object-contain rounded-xl border border-slate-200 shadow-sm mx-auto p-1 bg-white">`;
               }
               if (qrStatusText) {
                 qrStatusText.innerHTML = '<span class="text-brand-600 font-semibold animate-pulse">● Ready to scan!</span> Open WhatsApp on your phone → Linked Devices → Link a Device.';
@@ -5435,10 +5613,13 @@
       qrPollInterval = setInterval(async () => {
         if (currentView === "settings" && currentSettingsTab === "qr") {
           await loadQrCode();
+          if (!isWhatsAppConnected) {
+            await loadSessionStatus(true);
+          }
         } else {
           stopQrPolling();
         }
-      }, 3000);
+      }, 2000);
     }
 
     function stopQrPolling() {
@@ -5519,8 +5700,6 @@
       if (activeCampaignWorkers.has(campaignId)) return;
       activeCampaignWorkers.add(campaignId);
 
-      const delaySec = parseInt(document.getElementById("cfg-send-delay")?.value || "3", 10);
-      const delayMs = Math.max(0, Number.isFinite(delaySec) ? delaySec * 1000 : 3000);
       let lastCampaignUiRefresh = 0;
       const storeRef = BrowserMemoryStore.data;
 
@@ -5545,6 +5724,9 @@
           const msg = pendingMsgs[0];
           msg.status = "QUEUED";
           BrowserMemoryStore.save();
+          if (currentView === "campaign-details" && currentCampaignDetailsId === campaignId) {
+            loadCampaignMessagesDebounced(50);
+          }
 
           const cust = (storeRef.customers || []).find(c => c.id === msg.customerId);
           const outboundText = tpl?.body && cust
@@ -5590,8 +5772,17 @@
             loadCampaignMessagesDebounced(200);
           }
 
-          if (delayMs > 0) {
-            await new Promise(r => setTimeout(r, delayMs));
+          const stillPending = (storeRef.messages || []).some(
+            x => x.campaignId === campaignId && x.status === "PENDING"
+          );
+          const waitSec = stillPending ? pickRandomSendDelaySec() : 0;
+          recordDelayAfterSend(msg, waitSec);
+          BrowserMemoryStore.save();
+          if (currentView === "campaign-details" && currentCampaignDetailsId === campaignId) {
+            loadCampaignMessagesDebounced(50);
+          }
+          if (waitSec > 0) {
+            await new Promise(r => setTimeout(r, waitSec * 1000));
           }
         }
       } finally {
@@ -5815,7 +6006,7 @@
 
     function dismissPrivacyBanner() {
       try {
-        sessionStorage.setItem('wappflow_privacy_banner_dismissed', '1');
+        localStorage.setItem('wappflow_privacy_banner_dismissed', '1');
       } catch (_) {}
       const el = document.getElementById('privacy-trust-banner');
       if (el) el.classList.add('hidden');
@@ -5823,7 +6014,8 @@
 
     function initPrivacyBanner() {
       try {
-        if (sessionStorage.getItem('wappflow_privacy_banner_dismissed') === '1') {
+        if (localStorage.getItem('wappflow_privacy_banner_dismissed') === '1' ||
+            sessionStorage.getItem('wappflow_privacy_banner_dismissed') === '1') {
           const el = document.getElementById('privacy-trust-banner');
           if (el) el.classList.add('hidden');
         }
@@ -6286,6 +6478,8 @@
       lucide.createIcons();
       updateWaEngineHostUi();
       BrowserMemoryStore.load();
+      loadSendDelayRangeFromStorage();
+      restoreWhatsAppSnapshotToUi();
       initPrivacyBanner();
       await loadAuthUser();
       updateMemoryStatsUI();
