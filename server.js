@@ -252,7 +252,7 @@ async function initWhatsAppSession(clientId, forceRestart = false, clearAuth = f
 
         if (connection === 'connecting') {
           if (sessionObj.status !== 'CONNECTED') {
-            sessionObj.status = sessionHasPersistedCreds(clientId) ? 'RECONNECTING' : 'INITIALIZING';
+            sessionObj.status = 'INITIALIZING';
           }
         }
 
@@ -533,7 +533,7 @@ function isWhatsAppSessionReady(sessionObj) {
 function reconcileWhatsAppSessionState(sessionObj, clientId) {
   if (!sessionObj) return;
   if (sessionObj.status === 'CONNECTED' && !sessionObj.sock) {
-    sessionObj.status = sessionHasPersistedCreds(clientId) ? 'RECONNECTING' : 'DISCONNECTED';
+    sessionObj.status = sessionHasPersistedCreds(clientId) ? 'INITIALIZING' : 'DISCONNECTED';
     if (sessionObj.status === 'DISCONNECTED') {
       sessionObj.phoneNumber = null;
       sessionObj.pushName = null;
@@ -546,14 +546,17 @@ function buildWhatsAppPublicSession(sessionObj, clientId) {
   const readyToSend = isWhatsAppSessionReady(sessionObj);
   let status = sessionObj.status;
   if (!readyToSend && status === 'CONNECTED') {
-    status = sessionHasPersistedCreds(clientId) ? 'RECONNECTING' : 'DISCONNECTED';
+    status = 'INITIALIZING';
+  }
+  if (status === 'RECONNECTING') {
+    status = 'INITIALIZING';
   }
   return {
     clientId,
     status,
     readyToSend,
-    phoneNumber: readyToSend ? sessionObj.phoneNumber : null,
-    pushName: readyToSend ? sessionObj.pushName : null,
+    phoneNumber: sessionObj.phoneNumber || null,
+    pushName: sessionObj.pushName || null,
     lastConnectedAt: sessionObj.lastConnectedAt,
     lastError: sessionObj.lastError,
     hasQr: !!sessionObj.qrDataUrl,
@@ -577,9 +580,12 @@ async function waitForWhatsAppSessionReady(clientId, waitMs = 8000) {
 function kickWhatsAppSessionInit(clientId) {
   const sessionObj = getWhatsAppSession(clientId);
   reconcileWhatsAppSessionState(sessionObj, clientId);
-  if (!sessionObj.sock) {
-    initWhatsAppSession(clientId).catch(console.error);
+  if (sessionObj.sock) return;
+  if (waInitLockByClientId.has(clientId)) return;
+  if (sessionObj.status === 'INITIALIZING' || sessionObj.status === 'SCAN_QR' || sessionObj.status === 'RECONNECTING') {
+    return;
   }
+  initWhatsAppSession(clientId).catch(console.error);
 }
 
 async function ensureWhatsAppSocketReadyForSend(clientId, waitMs = 12000) {
@@ -821,14 +827,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     kickWhatsAppSessionInit(clientId);
-    let sessionObj = getWhatsAppSession(clientId);
-    if (!isWhatsAppSessionReady(sessionObj) && sessionHasPersistedCreds(clientId)) {
-      sessionObj = await waitForWhatsAppSessionReady(clientId, 6000);
+    const sessionObj = getWhatsAppSession(clientId);
+    if (!isWhatsAppSessionReady(sessionObj) && sessionHasPersistedCreds(clientId) && waInitLockByClientId.has(clientId)) {
+      await waitForWhatsAppSessionReady(clientId, 4000);
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       success: true,
-      data: buildWhatsAppPublicSession(sessionObj, clientId)
+      data: buildWhatsAppPublicSession(getWhatsAppSession(clientId), clientId)
     }));
     return;
   }
@@ -841,15 +847,16 @@ const server = http.createServer(async (req, res) => {
     }
     kickWhatsAppSessionInit(clientId);
     const sessionObj = getWhatsAppSession(clientId);
-    if (!sessionObj.qrDataUrl && (sessionObj.status === 'INITIALIZING' || sessionObj.status === 'DISCONNECTED' || sessionObj.status === 'SCAN_QR' || sessionObj.status === 'RECONNECTING')) {
-      const maxWait = sessionObj.status === 'SCAN_QR' ? 15 : 30;
+    const needsQrWait = !sessionObj.qrDataUrl && !isWhatsAppSessionReady(sessionObj)
+      && !sessionHasPersistedCreds(clientId);
+    if (needsQrWait) {
+      const maxWait = 40;
       for (let i = 0; i < maxWait; i++) {
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 150));
         if (sessionObj.qrDataUrl || isWhatsAppSessionReady(sessionObj)) break;
       }
-    }
-    if (!isWhatsAppSessionReady(sessionObj) && sessionHasPersistedCreds(clientId)) {
-      await waitForWhatsAppSessionReady(clientId, 6000);
+    } else if (!isWhatsAppSessionReady(sessionObj) && sessionHasPersistedCreds(clientId)) {
+      await waitForWhatsAppSessionReady(clientId, 2500);
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
