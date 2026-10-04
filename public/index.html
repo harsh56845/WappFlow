@@ -2686,7 +2686,6 @@
         phoneNumber: data.phoneNumber || null,
         pushName: data.pushName || null,
         lastError: data.lastError || null,
-        qrDataUrl: data.qrDataUrl || BrowserMemoryStore.data.whatsappLink?.qrDataUrl || null,
         lastSyncAt: new Date().toISOString()
       };
       BrowserMemoryStore.save();
@@ -5403,8 +5402,8 @@
           badgeText.innerText = "🟢 WhatsApp Connected: " + data.phoneNumber + " (" + (data.pushName || "Device") + ")";
         }
       } else if (data.status === "SCAN_QR" || data.status === "INITIALIZING" || data.status === "RECONNECTING") {
-        const restoring = data.phoneNumber && !data.qrDataUrl;
-        const label = restoring ? "Restoring WhatsApp session…" : (data.status === "SCAN_QR" ? "Scan QR Code" : "Connecting…");
+        const restoring = data.hasAuth && !data.qrDataUrl && !data.pairingCode;
+        const label = restoring ? "Restoring WhatsApp session…" : (data.pairingCode ? "Enter pairing code" : (data.status === "SCAN_QR" ? "Scan QR Code" : "Connecting…"));
         if (tbDot) tbDot.className = "w-2 h-2 rounded-full bg-amber-500 mr-1.5 animate-pulse";
         if (tbText) tbText.innerText = label;
         if (sbDot) sbDot.className = "w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5 animate-pulse";
@@ -5461,7 +5460,7 @@
           persistWhatsAppSnapshot(d);
           updateWhatsAppStatusBadges(d);
 
-          const showLinkedCard = d.readyToSend || (d.status === "CONNECTED" && d.phoneNumber);
+          const showLinkedCard = d.readyToSend === true;
           if (showLinkedCard) {
             if (qrConnectedCard) qrConnectedCard.classList.remove("hidden");
             if (qrUnlinkedCard) qrUnlinkedCard.classList.add("hidden");
@@ -5469,48 +5468,52 @@
             if (phoneEl) phoneEl.innerText = d.phoneNumber || "Linked Device";
             const nameEl = document.getElementById("qr-connected-name");
             if (nameEl) nameEl.innerText = d.pushName || "WhatsApp User";
-            if (d.readyToSend) stopQrPolling();
+            stopQrPolling();
           } else {
             if (qrConnectedCard) qrConnectedCard.classList.add("hidden");
             if (qrUnlinkedCard) qrUnlinkedCard.classList.remove("hidden");
 
-            const cachedQr = d.qrDataUrl || (!d.phoneNumber ? BrowserMemoryStore.data.whatsappLink?.qrDataUrl : null);
-            if (d.phoneNumber && !cachedQr) {
+            if (d.pairingCode) {
+              const resultBox = document.getElementById("wa-pairing-result");
+              const codeEl = document.getElementById("wa-pairing-code-display");
+              const hintEl = document.getElementById("wa-pairing-hint");
+              if (codeEl) codeEl.textContent = d.pairingCode;
+              if (hintEl) hintEl.textContent = "Enter this code in WhatsApp now. Keep this page open.";
+              if (resultBox) resultBox.classList.remove("hidden");
+            }
+
+            const restoring = d.hasAuth && !d.qrDataUrl && !d.pairingCode;
+            if (restoring) {
               if (qrContainer) {
                 qrContainer.innerHTML = `
                   <div class="w-full max-w-[14rem] aspect-square rounded-xl border border-brand-200 flex flex-col items-center justify-center p-4 text-center bg-brand-50 mx-auto">
                     <i data-lucide="loader-2" class="w-8 h-8 text-brand-600 animate-spin mb-2"></i>
                     <p class="text-xs text-brand-900 font-semibold">Restoring WhatsApp session…</p>
-                    <p class="text-[11px] text-brand-700/80 mt-1 font-mono">${d.phoneNumber}</p>
+                    <p class="text-[11px] text-brand-700/80 mt-1 font-mono">${d.phoneNumber || ''}</p>
                   </div>`;
               }
               if (qrStatusText) {
                 qrStatusText.innerText = "Already linked — reconnecting to the server (no need to scan again).";
               }
               lucide.createIcons();
-            } else if (cachedQr) {
+            } else if (d.qrDataUrl) {
               if (qrContainer) {
-                qrContainer.innerHTML = `<img src="${cachedQr}" alt="WhatsApp QR Code" class="w-full h-full max-w-[14rem] max-h-[14rem] object-contain rounded-xl border border-slate-200 shadow-sm mx-auto p-1 bg-white">`;
+                qrContainer.innerHTML = `<img src="${d.qrDataUrl}" alt="WhatsApp QR Code" class="w-full h-full max-w-[14rem] max-h-[14rem] object-contain rounded-xl border border-slate-200 shadow-sm mx-auto p-1 bg-white">`;
               }
               if (qrStatusText) {
                 qrStatusText.innerHTML = '<span class="text-brand-600 font-semibold animate-pulse">● Ready to scan!</span> Open WhatsApp on your phone → Linked Devices → Link a Device.';
               }
-            } else if (d.lastError) {
+            } else if (d.pairingCode) {
               if (qrContainer) {
                 qrContainer.innerHTML = `
-                  <div class="w-full max-w-[14rem] aspect-square rounded-xl border border-amber-200 flex flex-col items-center justify-center p-4 text-center bg-amber-50 mx-auto">
-                    <i data-lucide="alert-circle" class="w-8 h-8 text-amber-600 mb-2"></i>
-                    <p class="text-xs text-amber-800 font-medium mb-3">${d.lastError}</p>
-                    <button onclick="refreshQrCode()" class="px-3.5 py-1.5 btn-primary text-white rounded-lg text-xs font-semibold shadow-sm transition flex items-center">
-                      <i data-lucide="refresh-cw" class="w-3.5 h-3.5 mr-1.5"></i> Refresh QR Code
-                    </button>
-                  </div>
-                `;
+                  <div class="w-full max-w-[14rem] aspect-square rounded-xl border border-accent-200 flex flex-col items-center justify-center p-4 text-center bg-accent-50 mx-auto">
+                    <p class="text-[10px] uppercase font-bold text-accent-700 mb-1">Pairing code</p>
+                    <p class="text-xl font-black font-mono tracking-widest text-accent-800">${d.pairingCode}</p>
+                  </div>`;
               }
               if (qrStatusText) {
-                qrStatusText.innerHTML = `<span class="text-amber-700 font-semibold">Status:</span> ${d.lastError}`;
+                qrStatusText.innerText = "Enter the pairing code in WhatsApp. You can also scan a QR if one appears.";
               }
-              lucide.createIcons();
             } else {
               if (qrContainer) {
                 qrContainer.innerHTML = `
@@ -5522,7 +5525,9 @@
                 `;
               }
               if (qrStatusText) {
-                qrStatusText.innerText = "Connecting to WhatsApp Multi-Device WebSocket...";
+                qrStatusText.innerText = d.lastError
+                  ? d.lastError
+                  : "Connecting to WhatsApp Multi-Device WebSocket...";
               }
               lucide.createIcons();
             }
@@ -5555,6 +5560,11 @@
       if (errEl) errEl.classList.add("hidden");
       if (resultBox) resultBox.classList.add("hidden");
       showToast("Requesting pairing code from WhatsApp...", "info");
+      const pairBtn = document.querySelector('button[onclick="requestWhatsAppPairingCode()"]');
+      if (pairBtn) {
+        pairBtn.disabled = true;
+        pairBtn.textContent = 'Getting code…';
+      }
       try {
         const res = await fetch("/api/whatsapp/pairing-code", {
           method: "POST",
@@ -5579,6 +5589,11 @@
         }
       } catch (e) {
         showToast(e.message || "Pairing code request failed", "error");
+      } finally {
+        if (pairBtn) {
+          pairBtn.disabled = false;
+          pairBtn.textContent = 'Get pairing code';
+        }
       }
     }
 
