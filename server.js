@@ -69,8 +69,22 @@ function createWhatsAppSessionState(clientId) {
     phoneNumber: null,
     pushName: null,
     lastConnectedAt: null,
-    lastError: null
+    lastError: null,
+    pairingCode: null,
+    pairingCodePhone: null,
+    pairingCodeAt: null,
+    pairingInProgress: false
   };
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function formatPairingCode(code) {
+  const c = String(code || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  if (c.length === 8) return `${c.slice(0, 4)}-${c.slice(4)}`;
+  return String(code || '').toUpperCase();
 }
 
 // ==========================================
@@ -158,8 +172,9 @@ async function initWhatsAppSession(clientId, forceRestart = false, clearAuth = f
     return sessionObj;
   }
   const existingLock = waInitLockByClientId.get(clientId);
-  if (!forceRestart && existingLock) {
-    return existingLock;
+  if (existingLock) {
+    if (!forceRestart) return existingLock;
+    try { await existingLock; } catch (_) {}
   }
 
   const initLock = (async () => {
@@ -168,16 +183,26 @@ async function initWhatsAppSession(clientId, forceRestart = false, clearAuth = f
         clearWhatsAppAuthStorage(clientId);
       }
 
-      if (sessionObj.sock && (forceRestart || sessionObj.status === 'SCAN_QR' || sessionObj.status === 'DISCONNECTED')) {
+      if (sessionObj.sock) {
         try {
           sessionObj.sock.ev.removeAllListeners('connection.update');
           sessionObj.sock.ev.removeAllListeners('creds.update');
           sessionObj.sock.end(undefined);
         } catch (_) {}
+        sessionObj.sock = null;
+        sessionObj.receiptListenerSock = null;
       }
 
       sessionObj.status = 'INITIALIZING';
       sessionObj.lastError = null;
+      sessionObj.qr = null;
+      sessionObj.qrDataUrl = null;
+      if (clearAuth) {
+        sessionObj.pairingCode = null;
+        sessionObj.pairingCodePhone = null;
+        sessionObj.phoneNumber = null;
+        sessionObj.pushName = null;
+      }
 
       const { state, saveCreds } = await usePersistedAuthState(clientId);
       const browserConfig = (Browsers && typeof Browsers.macOS === 'function')
@@ -188,15 +213,15 @@ async function initWhatsAppSession(clientId, forceRestart = false, clearAuth = f
         auth: state,
         logger: pino({ level: 'silent' }),
         browser: browserConfig,
-        syncFullHistory: false,
+        printQRInTerminal: false,
         markOnlineOnConnect: false,
         emitOwnEvents: false,
         generateHighQualityLinkPreview: false,
         linkPreviewImageThumbnailWidth: 0,
-        connectTimeoutMs: 20000,
-        defaultQueryTimeoutMs: 10000,
-        keepAliveIntervalMs: 15000,
-        retryRequestDelayMs: 500
+        connectTimeoutMs: 30000,
+        defaultQueryTimeoutMs: 20000,
+        keepAliveIntervalMs: 25000,
+        retryRequestDelayMs: 400
       });
       sessionObj.sock = sock;
       attachOutboundReceiptListener(sock, sessionObj);
@@ -204,6 +229,7 @@ async function initWhatsAppSession(clientId, forceRestart = false, clearAuth = f
       sock.ev.on('creds.update', saveCreds);
 
       sock.ev.on('connection.update', async (update) => {
+        if (sessionObj.sock && sessionObj.sock !== sock) return;
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
@@ -224,34 +250,54 @@ async function initWhatsAppSession(clientId, forceRestart = false, clearAuth = f
           const loggedOut = statusCode === DisconnectReason.loggedOut;
           console.log(`[WhatsApp Engine][${clientId}] Connection closed. Code: ${statusCode}, LoggedOut: ${loggedOut}`);
 
-          sessionObj.status = 'DISCONNECTED';
-          sessionObj.qr = null;
-          sessionObj.qrDataUrl = null;
-          sessionObj.sock = null;
-          sessionObj.receiptListenerSock = null;
+          if (sessionObj.sock === sock) {
+            sessionObj.sock = null;
+            sessionObj.receiptListenerSock = null;
+          }
 
           if (loggedOut) {
+            sessionObj.status = 'DISCONNECTED';
+            sessionObj.qr = null;
+            sessionObj.qrDataUrl = null;
             sessionObj.phoneNumber = null;
             sessionObj.pushName = null;
-            sessionObj.lastError = 'WhatsApp session logged out from mobile phone.';
+            sessionObj.pairingCode = null;
+            sessionObj.lastError = 'WhatsApp session logged out from mobile phone. Refresh QR to link again.';
             clearWhatsAppAuthStorage(clientId);
-          } else if (statusCode === DisconnectReason.restartRequired || statusCode === 515) {
+            return;
+          }
+
+          if (sessionObj.pairingInProgress) {
+            sessionObj.lastError = null;
+            return;
+          }
+
+          sessionObj.status = 'DISCONNECTED';
+          if (statusCode === DisconnectReason.restartRequired || statusCode === 515) {
+            sessionObj.lastError = null;
             setTimeout(() => {
               initWhatsAppSession(clientId).catch(console.error);
-            }, 1500);
-          } else if (statusCode === 408 || statusCode === 428) {
-            sessionObj.lastError = 'QR code connection expired. Regenerating a fresh code...';
+            }, 1200);
+          } else if (statusCode === 408 || statusCode === 428 || statusCode === 440) {
+            sessionObj.qr = null;
+            sessionObj.qrDataUrl = null;
+            sessionObj.lastError = null;
             setTimeout(() => {
               initWhatsAppSession(clientId).catch(console.error);
-            }, 1500);
+            }, 800);
           } else {
             const rawMsg = lastDisconnect?.error?.message || '';
-            sessionObj.lastError = `Connection closed (${statusCode || rawMsg || 'Disconnected'})`;
+            sessionObj.lastError = `Connection closed (${statusCode || rawMsg || 'Disconnected'}). Refresh QR if it does not return.`;
+            setTimeout(() => {
+              if (!getWhatsAppSession(clientId).sock && !sessionHasPersistedCreds(clientId)) {
+                initWhatsAppSession(clientId).catch(console.error);
+              }
+            }, 1500);
           }
         }
 
         if (connection === 'connecting') {
-          if (sessionObj.status !== 'CONNECTED') {
+          if (sessionObj.status !== 'CONNECTED' && sessionObj.status !== 'SCAN_QR') {
             sessionObj.status = 'INITIALIZING';
           }
         }
@@ -261,6 +307,8 @@ async function initWhatsAppSession(clientId, forceRestart = false, clearAuth = f
           sessionObj.qr = null;
           sessionObj.qrDataUrl = null;
           sessionObj.lastError = null;
+          sessionObj.pairingCode = null;
+          sessionObj.pairingInProgress = false;
           const userJid = sock.user?.id || '';
           const rawDigits = userJid.split(':')[0].split('@')[0];
           const pushName = sock.user?.name || sock.user?.notify || 'WhatsApp User';
@@ -555,13 +603,37 @@ function buildWhatsAppPublicSession(sessionObj, clientId) {
     clientId,
     status,
     readyToSend,
-    phoneNumber: sessionObj.phoneNumber || null,
-    pushName: sessionObj.pushName || null,
+    hasAuth: sessionHasPersistedCreds(clientId),
+    phoneNumber: readyToSend ? sessionObj.phoneNumber : (sessionHasPersistedCreds(clientId) ? sessionObj.phoneNumber : null),
+    pushName: readyToSend ? sessionObj.pushName : null,
     lastConnectedAt: sessionObj.lastConnectedAt,
-    lastError: sessionObj.lastError,
+    lastError: sessionObj.qrDataUrl ? null : sessionObj.lastError,
     hasQr: !!sessionObj.qrDataUrl,
-    qrDataUrl: sessionObj.qrDataUrl
+    qrDataUrl: sessionObj.qrDataUrl,
+    pairingCode: sessionObj.pairingCode ? formatPairingCode(sessionObj.pairingCode) : null,
+    pairingCodePhone: sessionObj.pairingCodePhone || null
   };
+}
+
+function kickWhatsAppSessionInit(clientId) {
+  const sessionObj = getWhatsAppSession(clientId);
+  reconcileWhatsAppSessionState(sessionObj, clientId);
+  if (sessionObj.pairingInProgress) return;
+  if (sessionObj.sock) return;
+  if (waInitLockByClientId.has(clientId)) return;
+  initWhatsAppSession(clientId).catch(console.error);
+}
+
+async function waitForQrOrConnected(clientId, waitMs = 15000) {
+  const deadline = Date.now() + waitMs;
+  while (Date.now() < deadline) {
+    const sessionObj = getWhatsAppSession(clientId);
+    if (sessionObj.qrDataUrl || sessionObj.qr || isWhatsAppSessionReady(sessionObj) || sessionObj.pairingCode) {
+      return sessionObj;
+    }
+    await sleep(150);
+  }
+  return getWhatsAppSession(clientId);
 }
 
 async function waitForWhatsAppSessionReady(clientId, waitMs = 8000) {
@@ -575,17 +647,6 @@ async function waitForWhatsAppSessionReady(clientId, waitMs = 8000) {
     await new Promise((r) => setTimeout(r, 250));
   }
   return getWhatsAppSession(clientId);
-}
-
-function kickWhatsAppSessionInit(clientId) {
-  const sessionObj = getWhatsAppSession(clientId);
-  reconcileWhatsAppSessionState(sessionObj, clientId);
-  if (sessionObj.sock) return;
-  if (waInitLockByClientId.has(clientId)) return;
-  if (sessionObj.status === 'INITIALIZING' || sessionObj.status === 'SCAN_QR' || sessionObj.status === 'RECONNECTING') {
-    return;
-  }
-  initWhatsAppSession(clientId).catch(console.error);
 }
 
 async function ensureWhatsAppSocketReadyForSend(clientId, waitMs = 12000) {
@@ -638,19 +699,28 @@ async function teardownWhatsAppSocket(clientId) {
   sessionObj.qr = null;
   sessionObj.qrDataUrl = null;
   sessionObj.lastError = null;
+  sessionObj.pairingCode = null;
   waInitLockByClientId.delete(clientId);
 }
 
+function socketLooksOpen(sock) {
+  if (!sock) return false;
+  const ws = sock.ws;
+  if (!ws) return false;
+  if (ws.isOpen === true) return true;
+  if (typeof ws.readyState === 'number' && ws.readyState === 1) return true;
+  return false;
+}
+
 async function ensureSocketForPairing(clientId) {
-  await initWhatsAppSession(clientId);
-  let sessionObj = getWhatsAppSession(clientId);
+  const sessionObj = await initWhatsAppSession(clientId, true, true);
   let attempts = 0;
   while (!sessionObj.sock && attempts < 40) {
-    await new Promise((r) => setTimeout(r, 250));
-    sessionObj = getWhatsAppSession(clientId);
+    await sleep(250);
     attempts++;
   }
-  return sessionObj;
+  await waitForQrOrConnected(clientId, 12000);
+  return getWhatsAppSession(clientId);
 }
 
 async function requestWhatsAppPairingCode(clientId, phoneRaw) {
@@ -663,37 +733,39 @@ async function requestWhatsAppPairingCode(clientId, phoneRaw) {
   }
 
   let sessionObj = getWhatsAppSession(clientId);
-  if (sessionObj.status === 'CONNECTED') {
+  if (isWhatsAppSessionReady(sessionObj)) {
     return {
       success: false,
       error: 'WhatsApp is already linked on this browser. Disconnect first to use a pairing code.'
     };
   }
 
+  sessionObj.pairingInProgress = true;
   try {
-    await teardownWhatsAppSocket(clientId);
-    clearWhatsAppAuthStorage(clientId);
     sessionObj = await ensureSocketForPairing(clientId);
 
     let activeSock = sessionObj.sock;
     if (!activeSock) {
-      return { success: false, error: 'WhatsApp engine did not start. Wait 10 seconds and try again.' };
+      sessionObj.pairingInProgress = false;
+      return { success: false, error: 'WhatsApp engine did not start. Wait 10 seconds and tap Get pairing code again.' };
     }
 
-    await new Promise((r) => setTimeout(r, 1200));
-
-    if (activeSock.authState?.creds?.registered) {
-      await teardownWhatsAppSocket(clientId);
-      clearWhatsAppAuthStorage(clientId);
-      sessionObj = await ensureSocketForPairing(clientId);
+    const readyDeadline = Date.now() + 15000;
+    while (Date.now() < readyDeadline) {
+      if (activeSock.authState?.creds?.registered) break;
+      if (socketLooksOpen(activeSock) || sessionObj.qr) break;
+      await sleep(250);
+      sessionObj = getWhatsAppSession(clientId);
       activeSock = sessionObj.sock;
-      await new Promise((r) => setTimeout(r, 1200));
+      if (!activeSock) break;
     }
 
     if (!activeSock) {
-      return { success: false, error: 'Could not start a fresh session for pairing.' };
+      sessionObj.pairingInProgress = false;
+      return { success: false, error: 'Could not start a fresh session for pairing. Refresh the page and try again.' };
     }
     if (activeSock.authState?.creds?.registered) {
+      sessionObj.pairingInProgress = false;
       return {
         success: false,
         error: 'Session still registered. Tap Disconnect Device, wait 5s, then try pairing again.'
@@ -702,26 +774,29 @@ async function requestWhatsAppPairingCode(clientId, phoneRaw) {
 
     sessionObj.lastError = null;
     const pairingCode = await activeSock.requestPairingCode(cleanDigits);
+    const formatted = formatPairingCode(pairingCode);
     sessionObj.pairingCode = pairingCode;
     sessionObj.pairingCodePhone = cleanDigits;
     sessionObj.pairingCodeAt = Date.now();
     sessionObj.status = 'SCAN_QR';
+    sessionObj.pairingInProgress = false;
 
     return {
       success: true,
       data: {
-        pairingCode,
+        pairingCode: formatted,
         phone: cleanDigits,
-        hint: 'WhatsApp → Linked devices → Link with phone number instead → enter this code'
+        hint: 'WhatsApp → Linked devices → Link with phone number instead → enter this 8-character code'
       }
     };
   } catch (err) {
     const raw = err.message || 'Failed to generate pairing code';
-    const friendly = /closed|401|logout|conflict/i.test(raw)
-      ? `WhatsApp closed the link setup (${raw}). Use 919560386055 format, wait 10s, try once more. If it persists, tap Disconnect then Get pairing code.`
+    const friendly = /closed|401|logout|conflict|not open/i.test(raw)
+      ? 'WhatsApp closed the pairing socket before the code was ready. Wait 8 seconds and tap Get pairing code once more. If it persists, Disconnect Device first.'
       : raw;
     sessionObj = getWhatsAppSession(clientId);
     sessionObj.lastError = friendly;
+    sessionObj.pairingInProgress = false;
     return { success: false, error: friendly };
   }
 }
@@ -743,6 +818,10 @@ async function disconnectWhatsAppSession(clientId) {
   sessionObj.phoneNumber = null;
   sessionObj.pushName = null;
   sessionObj.receiptListenerSock = null;
+  sessionObj.pairingCode = null;
+  sessionObj.pairingCodePhone = null;
+  sessionObj.pairingInProgress = false;
+  sessionObj.lastError = null;
 
   clearWhatsAppAuthStorage(clientId);
 
@@ -846,18 +925,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     kickWhatsAppSessionInit(clientId);
-    const sessionObj = getWhatsAppSession(clientId);
-    const needsQrWait = !sessionObj.qrDataUrl && !isWhatsAppSessionReady(sessionObj)
-      && !sessionHasPersistedCreds(clientId);
-    if (needsQrWait) {
-      const maxWait = 40;
-      for (let i = 0; i < maxWait; i++) {
-        await new Promise(r => setTimeout(r, 150));
-        if (sessionObj.qrDataUrl || isWhatsAppSessionReady(sessionObj)) break;
-      }
-    } else if (!isWhatsAppSessionReady(sessionObj) && sessionHasPersistedCreds(clientId)) {
-      await waitForWhatsAppSessionReady(clientId, 2500);
-    }
+    await waitForQrOrConnected(clientId, sessionHasPersistedCreds(clientId) ? 4000 : 12000);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       success: true,
@@ -872,21 +940,13 @@ const server = http.createServer(async (req, res) => {
       waClientIdErrorResponse(res);
       return;
     }
-    const sessionObj = getWhatsAppSession(clientId);
     await initWhatsAppSession(clientId, true, true);
-    for (let i = 0; i < 20; i++) {
-      await new Promise(r => setTimeout(r, 200));
-      if (sessionObj.qrDataUrl || sessionObj.status === 'CONNECTED') break;
-    }
+    await waitForQrOrConnected(clientId, 12000);
+    const sessionObj = getWhatsAppSession(clientId);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       success: true,
-      data: {
-        clientId,
-        status: sessionObj.status,
-        qrDataUrl: sessionObj.qrDataUrl,
-        lastError: sessionObj.lastError
-      }
+      data: buildWhatsAppPublicSession(sessionObj, clientId)
     }));
     return;
   }
